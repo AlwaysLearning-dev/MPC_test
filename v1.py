@@ -1,4 +1,9 @@
-import json
+class Pipeline:
+    def __init__(self):
+        self.result = None
+        
+    def execute(self, data):
+        return process_hunt_results(**data)import json
 from datetime import datetime
 from typing import List, Dict, Any
 
