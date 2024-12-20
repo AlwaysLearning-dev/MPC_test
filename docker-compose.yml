@@ -15,7 +15,6 @@ services:
     ports:
       - "3000:8080"
     volumes:
-      - /home/bob/llama:/models
       - ./openwebui-extensions:/app/data
       - ./pipelines:/app/pipelines
       - ollama:/root/.ollama
