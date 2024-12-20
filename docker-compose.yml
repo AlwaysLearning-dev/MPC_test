@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:cuda
+    container_name: open-webui
+    environment:
+      - SYSTEM_PROMPT="You have access to a database of Sigma rules. You can search them using 'search sigma' followed by your query. Use this knowledge to help create, modify, or find relevant Sigma rules."
+      - WEBUI_PLUGIN_DIR=/app/data
+      - WEBUI_PIPELINES_DIR=/app/pipelines
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - PIPELINE_URL=http://pipelines:9099
+    ports:
+      - "3000:8080"
+    volumes:
+      - /home/bob/llama:/models
+      - ./openwebui-extensions:/app/data
+      - ./pipelines:/app/pipelines
+      - ollama:/root/.ollama
+      - open-webui:/app/backend/data
+    depends_on:
+      - ollama
+      - qdrant
+      - pipelines
+    restart: always
+
+  pipelines:
+    environment:
+      - ENABLE_CONTEXT=true
+      - LOG_LEVEL=DEBUG
+      - PYTHONPATH=/app
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: pipelines
+    ports:
+      - "9099:9099"
+    volumes:
+      - ./pipelines:/app/pipelines
+      - /home/bob/llama:/models
+    depends_on:
+      - ollama
+   # entrypoint: /bin/sh
+    command:
+      - "-c"
+      - "pip install langchain-community qdrant-client sentence-transformers langchain"
+    restart: always
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: ["gpu"]
+    environment:
+      - OLLAMA_DEBUG=true
+      - OLLAMA_FLASH_ATTENTION=true
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    restart: always
+
+  llama:
+    image: ollama/ollama:latest
+    container_name: ollama-pull-llama
+    volumes:
+      - ollama:/root/.ollama
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull llama3.2"
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+    restart: always
+
+volumes:
+  ollama:
+  open-webui:
+  qdrant_storage:
